@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAST STAND — Side-Scrolling Survival</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Share Tech Mono', monospace;
+    color: #e0e0e0;
+    overflow: hidden;
+  }
+
+  #title-screen {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, #0d1b2a 0%, #050508 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    gap: 32px;
+  }
+
+  #title-screen h1 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(24px, 5vw, 52px);
+    color: #ff4444;
+    text-shadow: 0 0 30px #ff2222, 0 0 60px #ff000088;
+    animation: pulse 1.5s ease-in-out infinite;
+    letter-spacing: 4px;
+  }
+
+  #title-screen p {
+    color: #8899aa;
+    font-size: 14px;
+    text-align: center;
+    max-width: 400px;
+    line-height: 1.8;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  #start-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    padding: 16px 32px;
+    background: transparent;
+    border: 2px solid #ff4444;
+    color: #ff4444;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+    text-shadow: 0 0 10px #ff4444;
+    box-shadow: 0 0 20px #ff444422, inset 0 0 20px #ff444411;
+  }
+
+  #start-btn:hover {
+    background: #ff444422;
+    box-shadow: 0 0 40px #ff4444aa, inset 0 0 20px #ff444433;
+    transform: scale(1.05);
+  }
+
+  #controls-info {
+    color: #556677;
+    font-size: 11px;
+    text-align: center;
+    line-height: 2;
+  }
+
+  #game-container {
+    position: relative;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  #hud {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    width: 800px;
+    max-width: 95vw;
+    padding: 8px 16px;
+    background: #11111a;
+    border: 1px solid #223;
+  }
+
+  .hud-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: #7788aa;
+  }
+
+  .hud-value {
+    color: #eef;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+  }
+
+  #health-bar-wrap {
+    flex: 1;
+    height: 10px;
+    background: #222;
+    border: 1px solid #334;
+  }
+
+  #health-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ff2244, #ff6644);
+    transition: width 0.2s;
+    box-shadow: 0 0 8px #ff224488;
+  }
+
+  canvas {
+    border: 1px solid #223;
+    display: block;
+    image-rendering: pixelated;
+    background: #0a0a14;
+  }
+
+  #game-over {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: #00000099;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    z-index: 50;
+  }
+
+  #game-over h2 {
+    font-family: 'Press Start 2P', monospace;
+    color: #ff2244;
+    font-size: 28px;
+    text-shadow: 0 0 30px #ff2244;
+  }
+
+  #final-score {
+    font-size: 16px;
+    color: #aabbcc;
+    font-family: 'Press Start 2P', monospace;
+  }
+
+  #restart-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    padding: 12px 24px;
+    background: transparent;
+    border: 2px solid #4488ff;
+    color: #4488ff;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+  }
+
+  #restart-btn:hover {
+    background: #4488ff22;
+    box-shadow: 0 0 20px #4488ffaa;
+  }
+
+  #wave-announce {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 20px;
+    color: #ffcc44;
+    text-shadow: 0 0 20px #ffcc44;
+    pointer-events: none;
+    z-index: 40;
+    opacity: 0;
+    transition: opacity 0.5s;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<div id="title-screen">
+  <h1>LAST STAND</h1>
+  <p>Waves of enemies are coming. Shoot them down before they reach your base. Survive as long as you can.</p>
+  <button id="start-btn">▶ START GAME</button>
+  <div id="controls-info">
+    MOVE: W A S D  or  ARROW KEYS<br>
+    SHOOT: SPACE  or  CLICK<br>
+    SPECIAL: E (cooldown 5s)
+  </div>
+</div>
+
+<div id="game-container">
+  <div id="hud">
+    <div class="hud-item">❤️ <div id="health-bar-wrap"><div id="health-bar" style="width:100%"></div></div></div>
+    <div class="hud-item">SCORE <span class="hud-value" id="score-display">0</span></div>
+    <div class="hud-item">WAVE <span class="hud-value" id="wave-display">1</span></div>
+    <div class="hud-item">SPECIAL <span class="hud-value" id="special-display">READY</span></div>
+  </div>
+  <div style="position:relative">
+    <canvas id="canvas" width="800" height="400"></canvas>
+    <div id="wave-announce"></div>
+    <div id="game-over">
+      <h2>GAME OVER</h2>
+      <div id="final-score">SCORE: 0</div>
+      <button id="restart-btn">↺ RESTART</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// --- Resize for mobile ---
+function resizeCanvas() {
+  const maxW = Math.min(800, window.innerWidth * 0.95);
+  const scale = maxW / 800;
+  canvas.style.width = maxW + 'px';
+  canvas.style.height = (400 * scale) + 'px';
+  document.getElementById('hud').style.width = maxW + 'px';
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// --- Game State ---
+let state = {};
+
+function initState() {
+  return {
+    player: { x: 100, y: 200, w: 28, h: 36, vy: 0, onGround: false, hp: 100, maxHp: 100, invincible: 0 },
+    bullets: [],
+    enemies: [],
+    particles: [],
+    stars: Array.from({length: 80}, () => ({x: Math.random()*800, y: Math.random()*300, s: Math.random()*1.5+0.3, spd: Math.random()*0.3+0.1})),
+    score: 0,
+    wave: 1,
+    waveTimer: 180,
+    waveBreak: false,
+    spawnQueue: [],
+    specialCooldown: 0,
+    gameOver: false,
+    bgOffset: 0,
+    shooting: false,
+    shootCooldown: 0,
+    keys: {},
+  };
+}
+
+state = initState();
+
+const GROUND = 340;
+const GRAVITY = 0.5;
+
+// --- Input ---
+document.addEventListener('keydown', e => {
+  state.keys[e.code] = true;
+  if (e.code === 'Space') { e.preventDefault(); state.shooting = true; }
+  if (e.code === 'KeyE') activateSpecial();
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+document.addEventListener('keyup', e => {
+  state.keys[e.code] = false;
+  if (e.code === 'Space') state.shooting = false;
+});
+canvas.addEventListener('click', () => { if (!state.gameOver) state.shooting = true; setTimeout(()=>state.shooting=false, 100); });
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); state.shooting = true; }, {passive:false});
+canvas.addEventListener('touchend', () => { state.shooting = false; });
+
+// --- Start / Restart ---
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('restart-btn').addEventListener('click', startGame);
+
+function startGame() {
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('game-container').style.display = 'flex';
+  document.getElementById('game-over').style.display = 'none';
+  state = initState();
+  announceWave(1);
+  requestAnimationFrame(loop);
+}
+
+function activateSpecial() {
+  if (state.specialCooldown > 0 || state.gameOver) return;
+  // Screen nuke — destroys all enemies, gives points
+  state.enemies.forEach(e => {
+    spawnParticles(e.x, e.y, '#ffcc44', 12);
+    state.score += 15;
+  });
+  state.enemies = [];
+  state.specialCooldown = 300;
+  // Flash effect
+  ctx.fillStyle = '#ffffff33';
+  ctx.fillRect(0, 0, 800, 400);
+}
+
+// --- Wave System ---
+function buildWave(wave) {
+  const queue = [];
+  const count = 4 + wave * 2;
+  for (let i = 0; i < count; i++) {
+    const type = wave < 3 ? 'grunt' : (Math.random() < 0.3 ? 'fast' : Math.random() < 0.2 ? 'tank' : 'grunt');
+    queue.push({ delay: i * 60 + Math.random()*30, type });
+  }
+  return queue;
+}
+
+function spawnEnemy(type) {
+  const configs = {
+    grunt: { w:24, h:30, hp:2, spd:1.2, color:'#cc3333', pts:10 },
+    fast:  { w:18, h:24, hp:1, spd:2.2, color:'#cc8833', pts:15 },
+    tank:  { w:36, h:38, hp:6, spd:0.6, color:'#6633cc', pts:30 },
+  };
+  const c = configs[type];
+  state.enemies.push({
+    x: 820, y: GROUND - c.h,
+    w: c.w, h: c.h,
+    hp: c.hp, maxHp: c.hp,
+    spd: c.spd, color: c.color,
+    pts: c.pts, type,
+    wobble: Math.random() * Math.PI * 2,
+  });
+}
+
+function announceWave(n) {
+  const el = document.getElementById('wave-announce');
+  el.textContent = n === 1 ? 'WAVE 1 — BEGIN!' : `WAVE ${n} — INCOMING!`;
+  el.style.opacity = '1';
+  setTimeout(() => el.style.opacity = '0', 2000);
+}
+
+// --- Particles ---
+function spawnParticles(x, y, color, count=8) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = Math.random() * 3 + 1;
+    state.particles.push({
+      x, y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd - 1,
+      life: 30 + Math.random() * 20,
+      maxLife: 50,
+      color, size: Math.random() * 4 + 1,
+    });
+  }
+}
+
+// --- Update ---
+function update() {
+  const s = state;
+  if (s.gameOver) return;
+
+  s.bgOffset = (s.bgOffset + 0.5) % 800;
+
+  // Player movement
+  const p = s.player;
+  if (s.keys['ArrowLeft'] || s.keys['KeyA']) p.x -= 3;
+  if (s.keys['ArrowRight'] || s.keys['KeyD']) p.x += 3;
+  if ((s.keys['ArrowUp'] || s.keys['KeyW'] || s.keys['Space'] && false) && p.onGround) {
+    p.vy = -10;
+    p.onGround = false;
+  }
+  // Jump with W/Up
+  if ((s.keys['ArrowUp'] || s.keys['KeyW']) && p.onGround) {
+    p.vy = -10; p.onGround = false;
+  }
+
+  p.x = Math.max(10, Math.min(400, p.x));
+  p.vy += GRAVITY;
+  p.y += p.vy;
+  if (p.y >= GROUND - p.h) { p.y = GROUND - p.h; p.vy = 0; p.onGround = true; }
+  if (p.invincible > 0) p.invincible--;
+
+  // Shooting
+  if (s.shootCooldown > 0) s.shootCooldown--;
+  if (s.shooting && s.shootCooldown <= 0) {
+    s.bullets.push({ x: p.x + p.w, y: p.y + p.h/2, vx: 8, vy: 0, r: 4, color: '#44aaff' });
+    s.shootCooldown = 12;
+  }
+
+  // Bullets
+  s.bullets = s.bullets.filter(b => {
+    b.x += b.vx;
+    if (b.x > 820) return false;
+    for (let i = s.enemies.length - 1; i >= 0; i--) {
+      const e = s.enemies[i];
+      if (b.x > e.x && b.x < e.x+e.w && b.y > e.y && b.y < e.y+e.h) {
+        e.hp--;
+        spawnParticles(b.x, b.y, e.color, 5);
+        if (e.hp <= 0) {
+          spawnParticles(e.x+e.w/2, e.y+e.h/2, e.color, 14);
+          s.score += e.pts;
+          s.enemies.splice(i, 1);
+        }
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Enemies
+  s.enemies.forEach(e => {
+    e.wobble += 0.1;
+    e.x -= e.spd;
+    if (e.x < -50) { e.x = -50; }
+    // Hit player
+    if (p.invincible === 0 &&
+        e.x < p.x+p.w && e.x+e.w > p.x &&
+        e.y < p.y+p.h && e.y+e.h > p.y) {
+      p.hp -= (e.type === 'tank' ? 20 : 10);
+      p.invincible = 60;
+      spawnParticles(p.x+p.w/2, p.y+p.h/2, '#ff4444', 10);
+      if (p.hp <= 0) { p.hp = 0; endGame(); }
+    }
+    // Reached base (x < 0)
+    if (e.x + e.w < 0) {
+      p.hp -= 15; p.invincible = 30;
+      if (p.hp <= 0) { p.hp = 0; endGame(); }
+      e.x = -200; // mark for removal
+    }
+  });
+  s.enemies = s.enemies.filter(e => e.x > -150);
+
+  // Particles
+  s.particles = s.particles.filter(pt => {
+    pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.1; pt.life--;
+    return pt.life > 0;
+  });
+
+  // Wave system
+  if (!s.waveBreak) {
+    s.waveTimer--;
+    // Spawn from queue
+    s.spawnQueue.forEach(sq => sq.delay--);
+    const ready = s.spawnQueue.filter(sq => sq.delay <= 0);
+    ready.forEach(sq => spawnEnemy(sq.type));
+    s.spawnQueue = s.spawnQueue.filter(sq => sq.delay > 0);
+
+    if (s.waveTimer <= 0 && s.spawnQueue.length === 0 && s.enemies.length === 0) {
+      s.wave++;
+      s.waveBreak = true;
+      s.waveTimer = 180;
+      setTimeout(() => {
+        s.spawnQueue = buildWave(s.wave);
+        s.waveBreak = false;
+        announceWave(s.wave);
+      }, 2500);
+    }
+  }
+
+  // Special cooldown
+  if (s.specialCooldown > 0) s.specialCooldown--;
+
+  // HUD
+  document.getElementById('score-display').textContent = s.score;
+  document.getElementById('wave-display').textContent = s.wave;
+  document.getElementById('health-bar').style.width = (p.hp / p.maxHp * 100) + '%';
+  const sc = s.specialCooldown;
+  document.getElementById('special-display').textContent = sc > 0 ? Math.ceil(sc/60)+'s' : 'READY';
+}
+
+function endGame() {
+  state.gameOver = true;
+  document.getElementById('final-score').textContent = 'SCORE: ' + state.score;
+  document.getElementById('game-over').style.display = 'flex';
+}
+
+// --- Draw ---
+function draw() {
+  const s = state;
+  ctx.clearRect(0, 0, 800, 400);
+
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
+  sky.addColorStop(0, '#070714');
+  sky.addColorStop(1, '#0f0f24');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, 800, GROUND);
+
+  // Stars
+  s.stars.forEach(st => {
+    st.x -= st.spd;
+    if (st.x < 0) st.x = 800;
+    ctx.fillStyle = `rgba(200,220,255,${0.3 + st.s * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(st.x, st.y, st.s * 0.6, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Mountains BG
+  ctx.fillStyle = '#141428';
+  drawMountain(ctx, s.bgOffset * 0.2, 0.4, 180, 80);
+  ctx.fillStyle = '#1a1a35';
+  drawMountain(ctx, s.bgOffset * 0.4, 0.6, 220, 60);
+
+  // Ground
+  ctx.fillStyle = '#1c1c2e';
+  ctx.fillRect(0, GROUND, 800, 60);
+  ctx.fillStyle = '#2a2a44';
+  ctx.fillRect(0, GROUND, 800, 4);
+
+  // Grid lines on ground
+  ctx.strokeStyle = '#ffffff0a';
+  ctx.lineWidth = 1;
+  for (let x = (-s.bgOffset) % 60; x < 800; x += 60) {
+    ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.lineTo(x, 400); ctx.stroke();
+  }
+
+  // Base marker
+  ctx.fillStyle = '#ff444444';
+  ctx.fillRect(0, 0, 5, 400);
+  ctx.fillStyle = '#ff4444';
+  ctx.fillRect(0, 0, 3, 400);
+
+  // Enemies
+  s.enemies.forEach(e => {
+    const bob = Math.sin(e.wobble) * 2;
+    // Body
+    ctx.fillStyle = e.color;
+    ctx.fillRect(e.x, e.y + bob, e.w, e.h);
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(e.x + e.w*0.2, e.y + e.h*0.2 + bob, e.w*0.2, e.h*0.15);
+    ctx.fillRect(e.x + e.w*0.6, e.y + e.h*0.2 + bob, e.w*0.2, e.h*0.15);
+    // Glowing outline
+    ctx.strokeStyle = e.color + '88';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(e.x-1, e.y-1+bob, e.w+2, e.h+2);
+    // HP bar
+    if (e.maxHp > 1) {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(e.x, e.y - 6 + bob, e.w, 3);
+      ctx.fillStyle = '#44ff88';
+      ctx.fillRect(e.x, e.y - 6 + bob, e.w * (e.hp / e.maxHp), 3);
+    }
+  });
+
+  // Player
+  const p = s.player;
+  const blink = p.invincible > 0 && Math.floor(p.invincible / 4) % 2 === 0;
+  if (!blink) {
+    // Body
+    ctx.fillStyle = '#2255ff';
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    // Helmet
+    ctx.fillStyle = '#4477ff';
+    ctx.fillRect(p.x + 2, p.y, p.w - 4, p.h * 0.45);
+    // Visor
+    ctx.fillStyle = '#88ddff';
+    ctx.fillRect(p.x + 5, p.y + 4, p.w - 10, 8);
+    // Gun
+    ctx.fillStyle = '#aabbcc';
+    ctx.fillRect(p.x + p.w, p.y + p.h * 0.4, 10, 5);
+    // Thruster glow
+    ctx.fillStyle = '#ff881144';
+    ctx.fillRect(p.x - 4, p.y + p.h * 0.5, 4, 8);
+  }
+
+  // Bullets
+  s.bullets.forEach(b => {
+    ctx.shadowColor = b.color;
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  // Particles
+  s.particles.forEach(pt => {
+    const alpha = pt.life / pt.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = pt.color;
+    ctx.fillRect(pt.x - pt.size/2, pt.y - pt.size/2, pt.size, pt.size);
+  });
+  ctx.globalAlpha = 1;
+
+  // Wave break countdown
+  if (s.waveBreak) {
+    ctx.fillStyle = '#ffffff22';
+    ctx.font = '12px Share Tech Mono';
+    ctx.fillText('NEXT WAVE INCOMING...', 300, 380);
+  }
+}
+
+function drawMountain(ctx, offset, scale, height, freq) {
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND);
+  for (let x = 0; x <= 800; x += 5) {
+    const y = GROUND - height * Math.abs(Math.sin((x + offset) / freq * scale));
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(800, GROUND);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// --- Loop ---
+function loop() {
+  update();
+  draw();
+  if (!state.gameOver) requestAnimationFrame(loop);
+}
+
+// Build initial wave
+state.spawnQueue = buildWave(1);
+
+</script>
+</body>
+</html>
